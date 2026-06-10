@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Историческая карта Таганрога</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+      integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw=="
+      crossorigin=""/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+        integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=="
+        crossorigin=""></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b2733; --paper:#f3ece0; --paper-edge:#e2d6c2;
+    --line:#cbbda3; --muted:#6c6253; --shadow:rgba(27,39,51,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:'PT Sans',system-ui,sans-serif;color:var(--ink)}
+  #app{display:flex;height:100vh;width:100%;overflow:hidden}
+
+  /* ===== Боковая панель ===== */
+  #panel{
+    width:330px;flex:0 0 330px;background:var(--paper);
+    border-right:1px solid var(--paper-edge);
+    display:flex;flex-direction:column;z-index:1100;
+    box-shadow:2px 0 14px var(--shadow);
+  }
+  #panel header{padding:22px 22px 16px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  #panel h1{
+    font-family:'Cormorant Garamond',serif;font-weight:700;
+    font-size:30px;line-height:1.05;margin:0;letter-spacing:.01em;
+  }
+  #panel h1 span{display:block;font-size:19px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+  .intro{font-size:13px;line-height:1.5;color:var(--muted);margin:14px 22px 0}
+
+  .legend{padding:14px 22px 22px;overflow-y:auto}
+  .legend h2{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:6px 0 12px;font-weight:700}
+  .epoch{
+    display:flex;align-items:flex-start;gap:11px;padding:9px 10px;margin:2px -10px;
+    border-radius:7px;cursor:pointer;user-select:none;transition:background .15s;
+  }
+  .epoch:hover{background:rgba(203,189,163,.28)}
+  .epoch input{display:none}
+  .dot{width:15px;height:15px;border-radius:50%;flex:0 0 15px;margin-top:3px;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+  .epoch .label{display:block;font-weight:700;font-size:14px;line-height:1.25}
+  .epoch .years{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .epoch.off{opacity:.4}
+  .epoch.off .dot{background:transparent !important;box-shadow:0 0 0 1px var(--line) inset}
+  .count{font-size:12px;color:var(--muted);margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+
+  /* ===== Карта ===== */
+  #map{flex:1;height:100%;background:#aad3df}
+
+  /* ===== Карточки (попапы) ===== */
+  .leaflet-popup-content-wrapper{border-radius:10px;box-shadow:0 8px 30px var(--shadow)}
+  .leaflet-popup-content{margin:0;width:280px !important}
+  .card-photo{width:100%;height:155px;object-fit:cover;display:block;border-radius:10px 10px 0 0;background:#ddd1bc}
+  .card-body{padding:13px 15px 15px}
+  .card-badge{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:#fff;padding:3px 9px;border-radius:20px;font-weight:700;margin-bottom:8px}
+  .card-title{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:21px;line-height:1.1;margin:0 0 5px}
+  .card-addr{font-size:12px;color:var(--muted);margin:0 0 9px;display:flex;gap:5px;align-items:baseline}
+  .card-addr::before{content:"📍";font-size:11px}
+  .card-desc{font-size:13.5px;line-height:1.5;margin:0;color:#33404d}
+
+  /* ===== Кнопка-переключатель для телефона ===== */
+  #toggle{
+    display:none;position:absolute;top:12px;left:12px;z-index:1200;
+    background:var(--ink);color:#fff;border:none;border-radius:8px;
+    padding:10px 14px;font-family:inherit;font-weight:700;font-size:14px;
+    box-shadow:0 3px 10px var(--shadow);cursor:pointer;
+  }
+
+  @media (max-width:760px){
+    #panel{position:absolute;top:0;left:0;height:100%;transform:translateX(-100%);
+      transition:transform .28s ease;width:84%;max-width:330px}
+    #panel.open{transform:translateX(0)}
+    #toggle{display:block}
+    #panel header{padding-top:54px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="toggle">☰ Эпохи</button>
+  <aside id="panel">
+    <header>
+      <p class="eyebrow">Историческая карта</p>
+      <h1>Таганрог<span>пять эпох одного города</span></h1>
+    </header>
+    <p class="intro">Нажмите на любую точку, чтобы открыть историю места. Снимайте галочки, чтобы скрыть или показать эпохи.</p>
+    <div class="legend">
+      <h2>Эпохи</h2>
+      <div id="epochs"></div>
+      <p class="count" id="count"></p>
+    </div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script>
+const DATA = {"epochs": [{"id": "e1", "name": "Основание Петром I", "color": "#8c2f39", "years": "конец XVII – нач. XVIII вв."}, {"id": "e2", "name": "Эпоха Александра I, расцвет", "color": "#c8951a", "years": "первая половина XIX в."}, {"id": "e3", "name": "Крымская война, духовный путь", "color": "#2d6a4f", "years": "середина XIX в."}, {"id": "e4", "name": "Чеховский Таганрог, модерн", "color": "#1d6fa3", "years": "2-я пол. XIX – нач. XX вв."}, {"id": "e5", "name": "Советский период и ВОВ", "color": "#555a5e", "years": "XX век"}], "places": [{"epoch": "e1", "name": "Павловская крепость", "lat": 47.270556, "lng": 38.830556, "addr": "хутор Гаевка (северо-западный пригород)", "desc": "Выдающийся памятник отечественной военно-инженерной мысли; первая в России земляная крепость регулярной бастионной фортификации.", "photo": "images/01-pavlovskaya-krepost.jpg"}, {"epoch": "e1", "name": "Памятный знак 3-му бастиону Троицкой крепости", "lat": 47.2125, "lng": 38.936667, "addr": "ул. Петровская, 15", "desc": "Скульптурная композиция (пушка и фрагмент каменной кладки), маркирующая исторические границы укреплений 1700 года.", "photo": "images/02-3-bastion.jpg"}, {"epoch": "e1", "name": "Петровские казармы", "lat": 47.200278, "lng": 38.941389, "addr": "1-й Крепостной пер., 46/16", "desc": "Сохранившийся аутентичный элемент военной инфраструктуры гарнизона; свидетель начального этапа освоения мыса.", "photo": "images/03-petrovskie-kazarmy.jpg"}, {"epoch": "e1", "name": "Памятник Петру I", "lat": 47.205, "lng": 38.946389, "addr": "Сквер Петра I (ул. Александровская, 56)", "desc": "Бронзовый монумент работы М. М. Антокольского (1903 г.); единственный авторский полноразмерный экземпляр в России.", "photo": "images/04-pamyatnik-petru.jpg"}, {"epoch": "e1", "name": "Памятный знак «Троицкая крепость на Таган-роге»", "lat": 47.205, "lng": 38.946389, "addr": "Сквер Петра I", "desc": "Установлен в 2022 г. к 350-летию Петра Великого по инициативе фонда «Таганрог Исторический». Символизирует разметочные клинья.", "photo": "images/05-troickaya-krepost-znak.jpg"}, {"epoch": "e2", "name": "Дом градоначальника (Дворец Александра I)", "lat": 47.212222, "lng": 38.938889, "addr": "ул. Греческая, 40", "desc": "Образец провинциального классицизма (1806 г.). Место проживания и скоропостижной кончины императора Александра I в 1825 году.", "photo": "images/06-dom-gradonachalnika.jpg"}, {"epoch": "e2", "name": "Памятник Александру I", "lat": 47.221111, "lng": 38.908889, "addr": "Александровская площадь", "desc": "Первый общественный памятник города (скульптор И. П. Мартос). Разрушен в годы советской власти, исторически достоверно воссоздан в 1998 г.", "photo": "images/07-pamyatnik-aleksandru.jpg"}, {"epoch": "e2", "name": "Дворец Н. Д. Алфераки", "lat": 47.213333, "lng": 38.928056, "addr": "ул. Фрунзе, 41 (пер. А. Глушко, 13)", "desc": "Роскошный особняк в стиле необарокко (1848 г.), возведённый для греческого мецената. Центр светской жизни; ныне краеведческий музей.", "photo": "images/08-dvorec-alferaki.jpg"}, {"epoch": "e2", "name": "Каменная (Депальдовская) лестница", "lat": 47.213056, "lng": 38.938056, "addr": "Портовая улица / ул. Греческая", "desc": "Шедевр Ф. Боффо (1823 г.), профинансированный меценатом Г. Депальдо. Важнейшая логистическая и видовая ось между портом и центром.", "photo": "images/09-kamennaya-lestnica.jpg"}, {"epoch": "e2", "name": "Старейшие солнечные часы", "lat": 47.212778, "lng": 38.9375, "addr": "ул. Греческая, 58, корп. 1", "desc": "Хронометр 1833 года, имевший колоссальное прикладное значение для синхронизации работы портовых служб и навигации.", "photo": "images/10-solnechnye-chasy.jpg"}, {"epoch": "e2", "name": "Памятник Джузеппе Гарибальди", "lat": 47.207778, "lng": 38.949444, "addr": "ул. Портовая, 1 / пер. Гарибальди", "desc": "Единственный в РФ памятник итальянскому революционеру (1961 г.). Посвящён его визиту в Таганрог в 1833 г. и вступлению в «Молодую Италию».", "photo": "images/11-pamyatnik-garibaldi.jpg"}, {"epoch": "e2", "name": "Памятный знак «Шлагбаум»", "lat": 47.222222, "lng": 38.917778, "addr": "ул. Петровская", "desc": "Стела, маркирующая место исторической таможенной заставы, отделявшей городскую черту от бескрайней степи.", "photo": "images/12-shlagbaum.jpg"}, {"epoch": "e3", "name": "Церковь Святого Николая Чудотворца", "lat": 47.201667, "lng": 38.940556, "addr": "ул. Шевченко, 28", "desc": "Главный храм морских кварталов (1778 г.). В бомбардировку 1855 г. принял удар корабельной артиллерии; в стенах навечно сохранены вражеские ядра.", "photo": "images/13-cerkov-nikolaya.jpg"}, {"epoch": "e3", "name": "Памятник защитникам Таганрога в Крымскую войну", "lat": 47.201667, "lng": 38.940278, "addr": "ул. Шевченко, 27 (возле храма)", "desc": "Монументальная стела, возведённая в 2005 году к 150-летию героической обороны города от англо-французского десанта.", "photo": "images/14-pamyatnik-krymskaya-voyna.jpg"}, {"epoch": "e3", "name": "Келья святого праведного Павла Таганрогского", "lat": 47.2025, "lng": 38.929167, "addr": "пер. Тургеневский, 82", "desc": "Скромное жилище Павла Стожкова; центр духовного притяжения и многолетнего религиозного подвига, контрастирующего с купеческим бытом.", "photo": "images/15-kelya-pavla.jpg"}, {"epoch": "e3", "name": "Ансамбль Старого городского кладбища", "lat": 47.205, "lng": 38.906944, "addr": "пер. Лагерный, 2-а", "desc": "Уникальный некрополь (закрыт в 1971 г.). Содержит братские могилы времён Крымской войны, часовню старца Павла и шедевры надгробной скульптуры.", "photo": "images/16-staroe-kladbishche.jpg"}, {"epoch": "e4", "name": "Домик Чехова (Музей)", "lat": 47.206389, "lng": 38.9225, "addr": "ул. Чехова, 69", "desc": "Аскетичный саманный флигель на бывшем купеческом подворье, где 17 января 1860 г. родился будущий великий писатель.", "photo": "images/17-domik-chekhova.jpg"}, {"epoch": "e4", "name": "Дом П. Е. Чехова", "lat": 47.207222, "lng": 38.922778, "addr": "ул. Розы Люксембург, 77", "desc": "Дом, принадлежавший родителям писателя; утрачен из-за долгов. Ныне интерактивный музей с элементами иммерсивности.", "photo": "images/18-dom-pe-chekhova.jpg"}, {"epoch": "e4", "name": "Музей «Лавка Чеховых»", "lat": 47.216111, "lng": 38.918056, "addr": "ул. Александровская, 100", "desc": "Бывшее здание бакалейной лавки, арендованное семьёй. Место ранних наблюдений А. П. Чехова за типажами и характерами горожан.", "photo": "images/19-lavka-chekhovyh.jpg"}, {"epoch": "e4", "name": "Мужская классическая гимназия", "lat": 47.218611, "lng": 38.918889, "addr": "ул. Октябрьская, 9", "desc": "Монументальное здание 1843 года; одно из старейших учебных заведений Юга. Прообраз атмосферы рассказа «Человек в футляре».", "photo": "images/20-muzhskaya-gimnaziya.jpg"}, {"epoch": "e4", "name": "Театр имени А. П. Чехова", "lat": 47.214722, "lng": 38.924167, "addr": "ул. Петровская, 90", "desc": "Шедевр архитектора Лондерона (1866 г.), имитирующий зал «Ла Скала». Важнейший источник творческого вдохновения писателя.", "photo": "images/21-teatr-chekhova.jpg"}, {"epoch": "e4", "name": "Дом Д. А. Дросси", "lat": 47.210556, "lng": 38.928611, "addr": "ул. Фрунзе, 22", "desc": "Исторический особняк, где собиралась гимназическая интеллигенция и устраивались любительские спектакли с участием молодого Чехова.", "photo": "images/22-dom-drossi.jpg"}, {"epoch": "e4", "name": "Памятник А. П. Чехову", "lat": 47.207222, "lng": 38.920833, "addr": "ул. Чехова, 67 (Красная пл.)", "desc": "Скульптурный мемориал, организующий градостроительное пространство исторического сквера в центре города.", "photo": "images/23-pamyatnik-chekhovu.jpg"}, {"epoch": "e4", "name": "Дом И. И. Чайковского", "lat": 47.211667, "lng": 38.940278, "addr": "ул. Греческая, 56Б", "desc": "Особняк 1870-х гг. (арх. М. П. Петров). Место жительства брата композитора П. И. Чайковского — Ипполита Чайковского, морского офицера.", "photo": "images/24-dom-chaykovskogo.jpg"}, {"epoch": "e4", "name": "Библиотека имени А. П. Чехова", "lat": 47.2175, "lng": 38.921389, "addr": "ул. Петровская, 96", "desc": "Здание (1914 г.) по проекту академика Ф. О. Шехтеля. Шедевр рационального модерна.", "photo": "images/25-biblioteka-chekhova.jpg"}, {"epoch": "e4", "name": "Дом Е. И. Шаронова", "lat": 47.208611, "lng": 38.919444, "addr": "ул. Фрунзе, 80", "desc": "Жемчужина модерна работы Ф. О. Шехтеля. Ныне музей градостроительства и быта; отличается асимметричным фасадом и майоликой.", "photo": "images/26-dom-sharonova.jpg"}, {"epoch": "e4", "name": "Дом Ф. Г. Раневской", "lat": 47.211111, "lng": 38.930278, "addr": "ул. Фрунзе, 10", "desc": "Мемориальное здание; место рождения и юности великой русской актрисы Фаины Раневской (скульптура установлена рядом в 2008 г.).", "photo": "images/27-dom-ranevskoy.jpg"}, {"epoch": "e5", "name": "Круглый дом", "lat": 47.2175, "lng": 38.913056, "addr": "ул. Александровская, 107", "desc": "Первый в СССР круглый жилой дом (1929 г.). Шедевр советского конструктивизма, воплотивший идею социалистического коммунального быта.", "photo": "images/28-kruglyy-dom.jpg"}, {"epoch": "e5", "name": "Дом специалистов Кожевенного завода", "lat": 47.216111, "lng": 38.9225, "addr": "пер. Спартаковский, 5", "desc": "Здание сталинского неоклассицизма (1953 г.), возведённое на месте и фундаментах разрушенной в 1923 году Лютеранской кирхи.", "photo": "images/29-dom-specialistov.jpg"}, {"epoch": "e5", "name": "Памятник «Клятва юности»", "lat": 47.216389, "lng": 38.922222, "addr": "пер. Спартаковский", "desc": "Установлен в 1973 г. Посвящён героизму участников антифашистского комсомольского подполья в период оккупации Таганрога.", "photo": "images/30-klyatva-yunosti.jpg"}, {"epoch": "e5", "name": "Мемориал «Петрушинская балка» (Балка смерти)", "lat": 47.191111, "lng": 38.8675, "addr": "село Петрушино (западная окраина)", "desc": "Место систематических массовых казней мирного населения в 1941–1943 гг. Мемориал требует деликатного и вдумчивого осмысления.", "photo": "images/31-petrushinskaya-balka.jpg"}, {"epoch": "e5", "name": "Мемориальный комплекс «Самбекские высоты»", "lat": 47.316389, "lng": 39.010556, "addr": "Неклиновский р-н, с. Самбек", "desc": "Масштабный комплекс, посвящённый прорыву Миус-фронта. Включает мемориал Славы, танк Т-26, Аллею Памяти и воинские захоронения.", "photo": "images/32-sambekskie-vysoty.jpg"}, {"epoch": "e5", "name": "Памятник В. И. Ленину", "lat": 47.211667, "lng": 38.935278, "addr": "Октябрьская площадь", "desc": "Установлен в 1970 г. Скульптор Н. В. Томский, архитектор А. А. Заварзин. Образец официального советского монументализма.", "photo": "images/33-pamyatnik-leninu.jpg"}]};
+const map = L.map('map', {zoomControl:true}).setView([47.2135, 38.928], 14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+const colorOf = {};
+DATA.epochs.forEach(e => colorOf[e.id] = e.color);
+
+// слои по эпохам
+const layers = {};
+DATA.epochs.forEach(e => layers[e.id] = L.layerGroup().addTo(map));
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+DATA.places.forEach(p => {
+  const c = colorOf[p.epoch];
+  const ep = DATA.epochs.find(e => e.id === p.epoch);
+  const marker = L.circleMarker([p.lat, p.lng], {
+    radius:9, color:'#ffffff', weight:2, fillColor:c, fillOpacity:1
+  });
+  const html =
+    '<img class="card-photo" src="'+p.photo+'" alt="'+esc(p.name)+'" '+
+      'onerror="this.style.display=\'none\'">'+
+    '<div class="card-body">'+
+      '<span class="card-badge" style="background:'+c+'">'+esc(ep.name)+'</span>'+
+      '<h3 class="card-title">'+esc(p.name)+'</h3>'+
+      '<p class="card-addr">'+esc(p.addr)+'</p>'+
+      '<p class="card-desc">'+esc(p.desc)+'</p>'+
+    '</div>';
+  marker.bindPopup(html, {maxWidth:280, minWidth:280});
+  marker.addTo(layers[p.epoch]);
+});
+
+// легенда + фильтры
+const epochsBox = document.getElementById('epochs');
+DATA.epochs.forEach(e => {
+  const n = DATA.places.filter(p => p.epoch === e.id).length;
+  const row = document.createElement('label');
+  row.className = 'epoch';
+  row.innerHTML =
+    '<input type="checkbox" checked data-id="'+e.id+'">'+
+    '<span class="dot" style="background:'+e.color+'"></span>'+
+    '<span><span class="label">'+e.name+'</span>'+
+    '<span class="years">'+e.years+' · '+n+' мест</span></span>';
+  const cb = row.querySelector('input');
+  cb.addEventListener('change', () => {
+    if(cb.checked){ map.addLayer(layers[e.id]); row.classList.remove('off'); }
+    else { map.removeLayer(layers[e.id]); row.classList.add('off'); }
+  });
+  epochsBox.appendChild(row);
+});
+document.getElementById('count').textContent = 'Всего на карте: ' + DATA.places.length + ' достопримечательностей';
+
+// мобильный переключатель
+const panel = document.getElementById('panel');
+document.getElementById('toggle').addEventListener('click', () => panel.classList.toggle('open'));
+map.on('click', () => panel.classList.remove('open'));
+</script>
+</body>
+</html>
